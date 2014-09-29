@@ -10,10 +10,11 @@ our $VERSION = '0.001';
 use Moo;
 
 use Authen::SASL::SASLprep qw/saslprep/;
+use Carp qw/croak/;
 use Crypt::URandom qw/urandom/;
-use MIME::Base64 qw/encode_base64/;
+use MIME::Base64 qw/decode_base64/;
 use PBKDF2::Tiny 0.003 qw/derive digest_fcn hmac/;
-use Types::Standard qw/Str Num/;
+use Types::Standard qw/Str Num CodeRef Bool/;
 
 use namespace::clean;
 
@@ -25,9 +26,12 @@ with 'Authen::SCRAM::Role::Common';
 
 =method credential_cb (required)
 
-This attribute must contain a code reference that takes a username and
-returns the four user-credential parameters required by SCRAM: C<salt>, C<StoredKey>,
-C<ServerKey>, and C<iteration count>.
+This attribute must contain a code reference that takes a username and returns
+the four user-credential parameters required by SCRAM: C<salt>, C<StoredKey>,
+C<ServerKey>, and C<iteration count>.  The C<salt>, C<StoredKey> and
+C<ServerKey> must be provided as octets (i.e. B<NOT> base64 encoded).
+
+If the username is unknown, it should return an empty list.
 
     ($salt, $stored_key, $server_key, $iterations) =
         $server->credential_cb->( $username );
@@ -38,8 +42,8 @@ for details.
 =cut
 
 has credential_cb => (
-    is => 'ro',
-    isa => CodeRef,
+    is       => 'ro',
+    isa      => CodeRef,
     required => 1,
 );
 
@@ -61,9 +65,11 @@ any transport encoding removed.
 =cut
 
 has auth_proxy_cb => (
-    is => 'ro',
-    isa => CodeRef,
-    required => 1,
+    is      => 'ro',
+    isa     => CodeRef,
+    default => sub {
+        return sub { 1 }
+    },
 );
 
 #--------------------------------------------------------------------------#
@@ -88,6 +94,16 @@ be substantially larger.
 =cut
 
 #--------------------------------------------------------------------------#
+# private attributes
+#--------------------------------------------------------------------------#
+
+has _proof_ok => (
+    is     => 'ro',
+    isa    => Bool,
+    writer => '_set_proof_ok',
+);
+
+#--------------------------------------------------------------------------#
 # public methods
 #--------------------------------------------------------------------------#
 
@@ -103,7 +119,46 @@ session.  This will throw an exception should an error occur.
 =cut
 
 sub first_msg {
-    my ($self, $msg) = @_;
+    my ( $self, $msg ) = @_;
+    $self->_clear_session;
+
+    my ( $cbind, $authz, $c_1_bare, $mext, @params ) = $msg =~ $self->_client_first_re;
+
+    if ( !defined $cbind ) {
+        croak "SCRAM client-first-message could not be parsed";
+    }
+    if ( $cbind eq 'p' ) {
+        croak
+          "SCRAM client-first-message required channel binding, but we do not support it";
+    }
+    if ( defined $mext ) {
+        croak
+          "SCRAM client-first-message required mandatory extension '$mext', but we do not support it";
+    }
+
+    push @params, $authz if defined $authz;
+    $self->_parse_to_session(@params);
+    $self->_extend_nonce;
+
+    my $name = $self->_get_session('n');
+    my ( $salt, $stored_key, $server_key, $iters ) = $self->credential_cb->($name);
+
+    if ( !defined $salt ) {
+        croak "SCRAM client-first-message had unknown user '$name'";
+    }
+
+    $self->_set_session(
+        s           => $self->_base64($salt),
+        i           => $iters,
+        _c1b        => $c_1_bare,
+        _stored_key => $stored_key,
+        _server_key => $server_key
+    );
+
+    my $reply = $self->_join_reply(qw/r s i/);
+    $self->_set_session( _s1 => $reply );
+
+    return $reply;
 }
 
 =method final_msg
@@ -118,22 +173,76 @@ to the client.  This will throw an exception should an error occur.
 
 sub final_msg {
     my ( $self, $msg ) = @_;
+
+    my ( $c2wop, @params ) = $msg =~ $self->_client_final_re;
+    $self->_set_session( _c2wop => $c2wop );
+
+    if ( !defined $c2wop ) {
+        croak "SCRAM client-first-message could not be parsed";
+    }
+
+    # confirm nonce
+    my $original_nonce = $self->_get_session("r");
+    $self->_parse_to_session(@params);
+    my $joint_nonce = $self->_get_session("r");
+    unless ( $joint_nonce eq $original_nonce ) {
+        croak "SCRAM client-final-message nonce invalid";
+    }
+
+    # confirm channel bindings
+    my $cbind = $self->_base64( $self->_construct_gs2( $self->_get_session("a") ) );
+    if ( $cbind ne $self->_get_session("c") ) {
+        croak "SCRAM client-final-message channel binding didn't match";
+    }
+
+    # confirm proof
+
+    my $client_sig   = $self->_client_sig;
+    my $proof        = decode_base64( $self->_get_session("p") );
+    my $client_key   = $proof ^ $client_sig;
+    my $computed_key = $self->_digest_fcn->($client_key);
+    my $name         = $self->_get_session("n");
+
+    if ( !$self->_const_eq_fcn->( $computed_key, $self->_get_session("_stored_key") ) ) {
+        croak "SCRAM authentication for user '$name' failed";
+    }
+
+    if ( my $authz = $self->_get_session("a") ) {
+        $self->auth_proxy_cb->( $name, $authz )
+          or croak("SCRAM authentication failed; '$name' not authorized to act as '$authz'");
+    }
+
+    $self->_set_session( _proof_ok => 1 );
+
+    my $server_sig =
+      $self->_hmac_fcn->( $self->_get_session('_server_key'), $self->_auth_msg );
+
+    $self->_set_session( v => $self->_base64($server_sig) );
+
+    $self->_join_reply('v');
 }
 
-=method validate
+=method authorization_id 
 
-    $client->validate();
+    $username = $client->authorization_id();
 
-This takes no arguments and verifies that the client credentials match the
-server credentials.  It will return true if valid and throw an exception,
-otherwise.
+This takes no arguments and returns the authorization identity resulting from
+the SCRAM exchange.
+
+If  authorization name was provided, it will confirm
+that the authentication name is authorized to act as the authorization name
+using the L</auth_proxy_cb> attribute. It will return the authorization name,
+if provided, or the authentication name, otherwise.  If the client credentials
+do not match or the authentication name is not authorized to act as the
+authorization name, then an exception will be thrown.
 
 =cut
 
-sub validate {
-    my ( $self ) = @_;
-
-    return 1;
+sub authorization_id {
+    my ($self) = @_;
+    return '' unless $self->_get_session("_proof_ok");
+    my $authz = $self->_get_session("a");
+    return length($authz) ? $authz : $self->_get_session("n");
 }
 
 1;

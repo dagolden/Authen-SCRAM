@@ -48,7 +48,7 @@ our $VERSION = '0.001';
 
     $server = Authen::SCRAM->server;
 
-    try {
+    $username = try {
         # get client-first-message
 
         $server_first = $server->first_msg( $client_first );
@@ -59,7 +59,7 @@ our $VERSION = '0.001';
 
         # send to client and check if client was valid
 
-        $server->validate;
+        return $server->validate; # returns valid username or dies
     }
     catch {
         die "Authentication failed!"

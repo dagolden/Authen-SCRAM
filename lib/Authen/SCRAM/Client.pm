@@ -9,9 +9,10 @@ our $VERSION = '0.001';
 
 use Moo;
 
-use Authen::SASL::SASLprep qw/saslprep/;
-use MIME::Base64 qw/encode_base64/;
-use PBKDF2::Tiny 0.003 qw/derive digest_fcn hmac/;
+use Carp qw/croak/;
+use MIME::Base64 qw/decode_base64/;
+use PBKDF2::Tiny 0.003 qw/derive/;
+use Try::Tiny;
 use Types::Standard qw/Str Num/;
 
 use namespace::clean;
@@ -22,7 +23,7 @@ use namespace::clean;
 
 =attr username (required)
 
-Authentication username
+Authentication identity
 
 =cut
 
@@ -42,6 +43,21 @@ has password => (
     is       => 'ro',
     isa      => Str,
     required => 1,
+);
+
+=attr authorization_id
+
+If the authentication identity (C<username>) wishes to act as a different,
+authorization identity, this attribute provides the authorization identity.  It
+is optional.  If not provided, the authentication identity is considered by the
+server to be the authorization identity.
+
+=cut
+
+has authorization_id => (
+    is      => 'ro',
+    isa     => Str,
+    default => '',
 );
 
 #--------------------------------------------------------------------------#
@@ -76,7 +92,7 @@ has _prepped_user => (
 
 sub _build__prepped_user {
     my ($self) = @_;
-    return saslprep( $self->username );
+    return $self->_saslprep( $self->username );
 }
 
 has _prepped_pass => (
@@ -86,7 +102,27 @@ has _prepped_pass => (
 
 sub _build__prepped_pass {
     my ($self) = @_;
-    return saslprep( $self->password );
+    return $self->_saslprep( $self->password );
+}
+
+has _prepped_authz => (
+    is  => 'lazy',
+    isa => Str,
+);
+
+sub _build__prepped_authz {
+    my ($self) = @_;
+    return $self->_saslprep( $self->authorization_id );
+}
+
+has _gs2_header => (
+    is  => 'lazy',
+    isa => Str,
+);
+
+sub _build__gs2_header {
+    my ($self) = @_;
+    return $self->_construct_gs2( $self->_prepped_authz );
 }
 
 #--------------------------------------------------------------------------#
@@ -107,12 +143,14 @@ should an error occur.
 sub first_msg {
     my ($self) = @_;
 
-    my ( $user, $pass ) = ( $self->_prepped_user, $self->_nonce );
-    for my $str ( $user, $pass ) {
-        $str =~ s/=/=3d/g;
-        $str =~ s/,/=2c/g;
-    }
-    return sprintf( "n,,n=%s,r=%s", $user, $pass );
+    $self->_clear_session;
+    $self->_set_session(
+        n => $self->_prepped_user,
+        r => $self->_get_session('_nonce'),
+    );
+    my $c_1_bare = $self->_join_reply(qw/n r/);
+    $self->_set_session( _c1b => $c_1_bare );
+    return $self->_gs2_header . $c_1_bare;
 }
 
 =method final_msg
@@ -126,7 +164,50 @@ to the server.  This will throw an exception should an error occur.
 =cut
 
 sub final_msg {
-    my ( $self, $msg ) = @_;
+    my ( $self, $s_first_msg ) = @_;
+
+    my ( $mext, @params ) = $s_first_msg =~ $self->_server_first_re;
+
+    if ( defined $mext ) {
+        croak
+          "SCRAM server-first-message required mandatory extension '$mext', but we do not support it";
+    }
+    if ( !@params ) {
+        croak "SCRAM server-first-message could not be parsed";
+    }
+
+    my $original_nonce = $self->_get_session("r");
+    $self->_parse_to_session(@params);
+
+    my $joint_nonce = $self->_get_session("r");
+    unless ( $joint_nonce =~ m{^\Q$original_nonce\E.} ) {
+        croak "SCRAM server-first-message nonce invalid";
+    }
+
+    # assemble client-final-wo-proof
+    $self->_set_session(
+        _s1 => $s_first_msg,
+        c   => $self->_base64( $self->_gs2_header ),
+    );
+    $self->_set_session( '_c2wop' => $self->_join_reply(qw/c r/) );
+
+    # assemble proof
+    my $salt       = decode_base64( $self->_get_session("s") );
+    my $iters      = $self->_get_session("i");
+    my $salted_pw  = derive( $self->digest, $self->_prepped_pass, $salt, $iters );
+    my $client_key = $self->_hmac_fcn->( $salted_pw, "Client Key" );
+    my $stored_key = $self->_digest_fcn->($client_key);
+
+    $self->_set_session(
+        _stored_key => $stored_key,
+        _server_key => $self->_hmac_fcn->( $salted_pw, "Server Key" ),
+    );
+
+    my $client_sig = $self->_client_sig;
+
+    $self->_set_session( p => $self->_base64( $client_key ^ $client_sig ) );
+
+    return $self->_join_reply(qw/c r p/);
 }
 
 =method validate
@@ -140,7 +221,21 @@ true if valid and throw an exception, otherwise.
 =cut
 
 sub validate {
-    my ( $self, $msg ) = @_;
+    my ( $self, $s_final_msg ) = @_;
+
+    my (@params) = $s_final_msg =~ $self->_server_final_re;
+    $self->_parse_to_session(@params);
+
+    if ( my $err = $self->_get_session("e") ) {
+        croak "SCRAM server-final-message was error '$err'";
+    }
+
+    my $server_sig =
+      $self->_hmac_fcn->( $self->_get_session("_server_key"), $self->_auth_msg );
+
+    if ( $self->_base64($server_sig) ne $self->_get_session("v") ) {
+        croak "SCRAM server-final-message failed validation";
+    }
 
     return 1;
 }
