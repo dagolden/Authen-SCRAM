@@ -1,0 +1,84 @@
+use 5.008;
+use strict;
+use warnings;
+
+package Authen::SCRAM;
+# ABSTRACT: Salted Challenge Response Authentication Mechanism (RFC 5802)
+
+our $VERSION = '0.001';
+
+1;
+
+=for Pod::Coverage BUILD
+
+=head1 SYNOPSIS
+
+    use Authen::SCRAM;
+    use Try::Tiny;
+
+    ### CLIENT SIDE ###
+
+    $client = Authen::SCRAM::Client->new(
+        username => 'johndoe',
+        password => 'trustno1',
+    );
+
+    try {
+
+        $client_first = $client->first_msg();
+
+        # send to server and get server-first-message
+
+        $client_final = $client->final_msg( $server_first );
+
+        # send to server and get server-final-message
+
+        $client->validate( $server_final );
+
+    }
+    catch {
+        die "authentication failed!"
+    };
+
+    ### SERVER SIDE ###
+
+    $server = Authen::SCRAM::Server->new(
+        credential_cb => \&get_credentials,
+    );
+
+    $server = Authen::SCRAM->server;
+
+    try {
+        # get client-first-message
+
+        $server_first = $server->first_msg( $client_first );
+
+        # send to client and get client-final-message
+
+        $server_final = $server->final_msg( $client_final );
+
+        # send to client and check if client was valid
+
+        $server->validate;
+    }
+    catch {
+        die "Authentication failed!"
+    };
+
+=head1 DESCRIPTION
+
+This module might be cool, but you'd never know it from the lack
+of documentation.
+
+=head1 USAGE
+
+Good luck!
+
+=head1 SEE ALSO
+
+=for :list
+* Maybe other modules do related things.
+
+=cut
+
+# vim: ts=4 sts=4 sw=4 et:
