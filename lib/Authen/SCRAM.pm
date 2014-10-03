@@ -13,7 +13,8 @@ our $VERSION = '0.001';
 
 =head1 SYNOPSIS
 
-    use Authen::SCRAM;
+    use Authen::SCRAM::Client;
+    use Authen::SCRAM::Server;
     use Try::Tiny;
 
     ### CLIENT SIDE ###
@@ -24,7 +25,6 @@ our $VERSION = '0.001';
     );
 
     try {
-
         $client_first = $client->first_msg();
 
         # send to server and get server-first-message
@@ -34,10 +34,9 @@ our $VERSION = '0.001';
         # send to server and get server-final-message
 
         $client->validate( $server_final );
-
     }
     catch {
-        die "authentication failed!"
+        die "Authentication failed!"
     };
 
     ### SERVER SIDE ###
@@ -45,8 +44,6 @@ our $VERSION = '0.001';
     $server = Authen::SCRAM::Server->new(
         credential_cb => \&get_credentials,
     );
-
-    $server = Authen::SCRAM->server;
 
     $username = try {
         # get client-first-message
@@ -57,9 +54,9 @@ our $VERSION = '0.001';
 
         $server_final = $server->final_msg( $client_final );
 
-        # send to client and check if client was valid
+        # send to client
 
-        return $server->validate; # returns valid username or dies
+        return $server->authorization_id; # returns valid username
     }
     catch {
         die "Authentication failed!"

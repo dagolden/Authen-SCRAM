@@ -167,7 +167,14 @@ sub first_msg {
 
 This takes the C<client-final-message> received from the client and returns the
 C<server-final-message> string containing the verification signature to be sent
-to the client.  This will throw an exception should an error occur.
+to the client.
+
+If an authorization identity was provided by the client, it will confirm that
+the authenticating username is authorized to act as the authorization id using
+the L</auth_proxy_cb> attribute.
+
+If the client credentials do not match or the authentication name is not
+authorized to act as the authorization name, then an exception will be thrown.
 
 =cut
 
@@ -227,14 +234,8 @@ sub final_msg {
     $username = $client->authorization_id();
 
 This takes no arguments and returns the authorization identity resulting from
-the SCRAM exchange.
-
-If  authorization name was provided, it will confirm
-that the authentication name is authorized to act as the authorization name
-using the L</auth_proxy_cb> attribute. It will return the authorization name,
-if provided, or the authentication name, otherwise.  If the client credentials
-do not match or the authentication name is not authorized to act as the
-authorization name, then an exception will be thrown.
+the SCRAM exchange.  This is the client-supplied authorization identity (if one
+was provided and validated) or else the successfully authenticated identity.
 
 =cut
 
@@ -252,20 +253,32 @@ sub authorization_id {
 =head1 SYNOPSIS
 
     use Authen::SCRAM::Server;
+    use Try::Tiny;
+
+    $server = Authen::SCRAM::Server->new(
+        credential_cb => \&get_credentials,
+    );
+
+    $username = try {
+        # get client-first-message
+
+        $server_first = $server->first_msg( $client_first );
+
+        # send to client and get client-final-message
+
+        $server_final = $server->final_msg( $client_final );
+
+        # send to client
+
+        return $server->authorization_id; # returns valid username
+    }
+    catch {
+        die "Authentication failed!"
+    };
 
 =head1 DESCRIPTION
 
-This module might be cool, but you'd never know it from the lack
-of documentation.
-
-=head1 USAGE
-
-Good luck!
-
-=head1 SEE ALSO
-
-=for :list
-* Maybe other modules do related things.
+This module implements the server-side SCRAM algorithm.
 
 =cut
 

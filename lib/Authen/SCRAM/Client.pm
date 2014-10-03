@@ -246,8 +246,28 @@ sub validate {
 
 =head1 SYNOPSIS
 
-    use Authen::SCRAM;
+    use Authen::SCRAM::Client;
+    use Try::Tiny;
 
+    $client = Authen::SCRAM::Client->new(
+        username => 'johndoe',
+        password => 'trustno1',
+    );
+
+    try {
+        $client_first = $client->first_msg();
+
+        # send to server and get server-first-message
+
+        $client_final = $client->final_msg( $server_first );
+
+        # send to server and get server-final-message
+
+        $client->validate( $server_final );
+    }
+    catch {
+        die "Authentication failed!"
+    };
 
 =head1 DESCRIPTION
 
