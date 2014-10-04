@@ -24,7 +24,7 @@ with 'Authen::SCRAM::Role::Common';
 # public attributes
 #--------------------------------------------------------------------------#
 
-=method credential_cb (required)
+=attr credential_cb (required)
 
 This attribute must contain a code reference that takes a username and returns
 the four user-credential parameters required by SCRAM: C<salt>, C<StoredKey>,
@@ -47,7 +47,7 @@ has credential_cb => (
     required => 1,
 );
 
-=method auth_proxy_cb
+=attr auth_proxy_cb
 
 If provided, this attribute must contain a code reference that takes an
 B<authentication> username and a B<authorization> username, and return
@@ -59,8 +59,8 @@ the authorization username:
     );
 
 It will only be all called if the authentication username has successfully
-authenticated.  Both usernames are expected to be prepared via C<SASLprep> with
-any transport encoding removed.
+authenticated.  Both usernames will have been normalized via C<SASLprep> with
+any transport encoding removed before being passed to this function.
 
 =cut
 

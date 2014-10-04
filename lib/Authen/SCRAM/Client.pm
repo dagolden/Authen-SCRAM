@@ -23,7 +23,8 @@ use namespace::clean;
 
 =attr username (required)
 
-Authentication identity
+Authentication identity.  This will be normalized with the SASLprep algorithm
+before being transmitted to the server.
 
 =cut
 
@@ -35,7 +36,8 @@ has username => (
 
 =attr password (required)
 
-Authentication password
+Authentication password.  This will be normalized with the SASLprep algorithm
+before being transmitted to the server.
 
 =cut
 
@@ -47,10 +49,10 @@ has password => (
 
 =attr authorization_id
 
-If the authentication identity (C<username>) wishes to act as a different,
+If the authentication identity (C<username>) will act as a different,
 authorization identity, this attribute provides the authorization identity.  It
 is optional.  If not provided, the authentication identity is considered by the
-server to be the authorization identity.
+server to be the same as the authorization identity.
 
 =cut
 

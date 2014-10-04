@@ -64,17 +64,10 @@ our $VERSION = '0.001';
 
 =head1 DESCRIPTION
 
-This module might be cool, but you'd never know it from the lack
-of documentation.
+The modules in this distribution implement the Salted Challenge Response
+Authentication Mechanism (SCRAM) from RFC 5802.
 
-=head1 USAGE
-
-Good luck!
-
-=head1 SEE ALSO
-
-=for :list
-* Maybe other modules do related things.
+See L<Authen::SCRAM::Client> and L<Authen::SCRAM::Server> for usage details.
 
 =cut
 
