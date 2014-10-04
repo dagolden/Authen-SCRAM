@@ -264,4 +264,10 @@ sub _server_final_re { $S_FINL_MSG } # ($error_or_verification)
 
 1;
 
+=pod
+
+=for Pod::Coverage digest nonce_size
+
+=cut
+
 # vim: ts=4 sts=4 sw=4 et:
