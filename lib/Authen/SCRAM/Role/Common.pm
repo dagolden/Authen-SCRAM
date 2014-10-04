@@ -4,7 +4,7 @@ use warnings;
 
 package Authen::SCRAM::Role::Common;
 
-our $VERSION = '0.001';
+our $VERSION = '0.002';
 
 use Moo::Role;
 
