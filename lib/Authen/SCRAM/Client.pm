@@ -5,7 +5,7 @@ use warnings;
 package Authen::SCRAM::Client;
 # ABSTRACT: RFC 5802 SCRAM client
 
-our $VERSION = '0.002';
+our $VERSION = '0.003';
 
 use Moo;
 
