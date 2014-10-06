@@ -10,6 +10,7 @@ our $VERSION = '0.002';
 use Moo;
 
 use Carp qw/croak/;
+use Encode qw/encode_utf8/;
 use MIME::Base64 qw/decode_base64/;
 use PBKDF2::Tiny 0.003 qw/derive/;
 use Try::Tiny;
@@ -135,10 +136,10 @@ sub _build__gs2_header {
 
     $client_first_msg = $client->first_msg();
 
-This takes no arguments and returns the C<client-first-message> string to be
-sent to the server to initiate a SCRAM session.  Calling this again will reset
-the internal state and initiate a new session.  This will throw an exception
-should an error occur.
+This takes no arguments and returns the C<client-first-message> character
+string to be sent to the server to initiate a SCRAM session.  Calling this
+again will reset the internal state and initiate a new session.  This will
+throw an exception should an error occur.
 
 =cut
 
@@ -152,16 +153,19 @@ sub first_msg {
     );
     my $c_1_bare = $self->_join_reply(qw/n r/);
     $self->_set_session( _c1b => $c_1_bare );
-    return $self->_gs2_header . $c_1_bare;
+    my $msg = $self->_gs2_header . $c_1_bare;
+    utf8::upgrade($msg); # ensure UTF-8 encoding internally
+    return $msg;
 }
 
 =method final_msg
 
     $client_final_msg = $client->final_msg( $server_first_msg );
 
-This takes the C<server-first-message> received from the server and returns the
-C<client-final-message> string containing the authentication proof to be sent
-to the server.  This will throw an exception should an error occur.
+This takes the C<server-first-message> character string received from the
+server and returns the C<client-final-message> character string containing the
+authentication proof to be sent to the server.  This will throw an exception
+should an error occur.
 
 =cut
 
@@ -189,14 +193,15 @@ sub final_msg {
     # assemble client-final-wo-proof
     $self->_set_session(
         _s1 => $s_first_msg,
-        c   => $self->_base64( $self->_gs2_header ),
+        c   => $self->_base64( encode_utf8( $self->_gs2_header ) ),
     );
     $self->_set_session( '_c2wop' => $self->_join_reply(qw/c r/) );
 
     # assemble proof
-    my $salt       = decode_base64( $self->_get_session("s") );
-    my $iters      = $self->_get_session("i");
-    my $salted_pw  = derive( $self->digest, $self->_prepped_pass, $salt, $iters );
+    my $salt  = decode_base64( $self->_get_session("s") );
+    my $iters = $self->_get_session("i");
+    my $salted_pw =
+      derive( $self->digest, encode_utf8( $self->_prepped_pass ), $salt, $iters );
     my $client_key = $self->_hmac_fcn->( $salted_pw, "Client Key" );
     my $stored_key = $self->_digest_fcn->($client_key);
 
@@ -216,9 +221,9 @@ sub final_msg {
 
     $client->validate( $server_final_msg );
 
-This takes the C<server-final-message> received from the server and verifies
-that the server actually has a copy of the client credentials.  It will return
-true if valid and throw an exception, otherwise.
+This takes the C<server-final-message> character string received from the
+server and verifies that the server actually has a copy of the client
+credentials.  It will return true if valid and throw an exception, otherwise.
 
 =cut
 
@@ -274,6 +279,17 @@ sub validate {
 =head1 DESCRIPTION
 
 This module implements the client-side SCRAM algorithm.
+
+=head1 CHARACTER ENCODING CAVEAT
+
+The SCRAM protocol mandates UTF-8 interchange.  However, all methods in this
+module take and return B<character> strings.  You must encode to UTF-8 before
+sending and decode from UTF-8 on receiving according to whatever transport
+mechanism you are using.
+
+This is done to avoid double encoding/decoding problems if your transport is
+already doing UTF-8 encoding or decoding as it constructs outgoing messages or
+parses incoming messages.
 
 =cut
 

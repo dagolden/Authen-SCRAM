@@ -2,6 +2,17 @@ Revision history for Authen-SCRAM
 
 {{$NEXT}}
 
+    [Fixed]
+
+    - Fixed handling of character encodings for non-ASCII characters in
+      usernames and passwords
+
+    [Documented]
+
+    - Clarified that all inputs/outputs are expected to be character
+      strings and that users are responsible for UTF-8 encoding/decoding
+      during transmission and reception
+
 0.001     2014-10-04 13:25:37-04:00 America/New_York
 
     - First release

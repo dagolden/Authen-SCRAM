@@ -12,6 +12,7 @@ use Moo;
 use Authen::SASL::SASLprep qw/saslprep/;
 use Carp qw/croak/;
 use Crypt::URandom qw/urandom/;
+use Encode qw/encode_utf8/;
 use MIME::Base64 qw/decode_base64/;
 use PBKDF2::Tiny 0.003 qw/derive digest_fcn hmac/;
 use Types::Standard qw/Str Num CodeRef Bool/;
@@ -26,10 +27,11 @@ with 'Authen::SCRAM::Role::Common';
 
 =attr credential_cb (required)
 
-This attribute must contain a code reference that takes a username and returns
-the four user-credential parameters required by SCRAM: C<salt>, C<StoredKey>,
-C<ServerKey>, and C<iteration count>.  The C<salt>, C<StoredKey> and
-C<ServerKey> must be provided as octets (i.e. B<NOT> base64 encoded).
+This attribute must contain a code reference that takes a username (as a
+character string normalized by SASLprep) and returns the four user-credential
+parameters required by SCRAM: C<salt>, C<StoredKey>, C<ServerKey>, and
+C<iteration count>.  The C<salt>, C<StoredKey> and C<ServerKey> must be
+provided as octets (i.e. B<NOT> base64 encoded).
 
 If the username is unknown, it should return an empty list.
 
@@ -50,9 +52,9 @@ has credential_cb => (
 =attr auth_proxy_cb
 
 If provided, this attribute must contain a code reference that takes an
-B<authentication> username and a B<authorization> username, and return
-a true value if the authentication username is permitted to act as
-the authorization username:
+B<authentication> username and a B<authorization> username (both as character
+strings), and return a true value if the authentication username is permitted
+to act as the authorization username:
 
     $bool = $server->auth_proxy_cb->(
         $authentication_user, $authorization_user
@@ -197,7 +199,8 @@ sub final_msg {
     }
 
     # confirm channel bindings
-    my $cbind = $self->_base64( $self->_construct_gs2( $self->_get_session("a") ) );
+    my $cbind =
+      $self->_base64( encode_utf8( $self->_construct_gs2( $self->_get_session("a") ) ) );
     if ( $cbind ne $self->_get_session("c") ) {
         croak "SCRAM client-final-message channel binding didn't match";
     }
@@ -279,6 +282,17 @@ sub authorization_id {
 =head1 DESCRIPTION
 
 This module implements the server-side SCRAM algorithm.
+
+=head1 CHARACTER ENCODING CAVEAT
+
+The SCRAM protocol mandates UTF-8 interchange.  However, all methods in this
+module take and return B<character> strings.  You must encode to UTF-8 before
+sending and decode from UTF-8 on receiving according to whatever transport
+mechanism you are using.
+
+This is done to avoid double encoding/decoding problems if your transport is
+already doing UTF-8 encoding or decoding as it constructs outgoing messages or
+parses incoming messages.
 
 =cut
 

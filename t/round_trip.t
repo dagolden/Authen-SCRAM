@@ -56,6 +56,24 @@ subtest "generated example with authz" => sub {
     is( $server->authorization_id, 'admin', "server authz" );
 };
 
+subtest "generated example with Unicode user/pass/authz" => sub {
+    my $client = get_client(
+        username         => "johnd\N{U+110B}oe",
+        password         => "pass\N{U+110B}PASSpass",
+        authorization_id => "admi\N{U+110B}n"
+    );
+    my $server = get_server;
+
+    my ( $c1, $c2, $s1, $s2 );
+
+    is( exception { $c1 = $client->first_msg() },    undef, "client first message" );
+    is( exception { $s1 = $server->first_msg($c1) }, undef, "server first message" );
+    is( exception { $c2 = $client->final_msg($s1) }, undef, "client final message" );
+    is( exception { $s2 = $server->final_msg($c2) }, undef, "server final message" );
+    is( exception { $client->validate($s2) }, undef, "client validation" );
+    is( $server->authorization_id, "admi\N{U+110B}n", "server authz" );
+};
+
 subtest "generated example with bad user" => sub {
     my $client = get_client(
         username => 'janedoe',

@@ -11,6 +11,7 @@ use Moo::Role;
 use Authen::SASL::SASLprep qw/saslprep/;
 use Carp qw/croak/;
 use Crypt::URandom qw/urandom/;
+use Encode qw/encode_utf8/;
 use MIME::Base64 qw/encode_base64/;
 use PBKDF2::Tiny 0.003 qw/digest_fcn hmac/;
 use Try::Tiny;
@@ -133,7 +134,7 @@ sub _build__session {
 sub _auth_msg {
     my ($self) = @_;
     return $self->_session->{_auth} ||=
-      join( ",", map { $self->_session->{$_} } qw/_c1b _s1 _c2wop/ );
+      encode_utf8( join( ",", map { $self->_session->{$_} } qw/_c1b _s1 _c2wop/ ) );
 }
 
 sub _base64 {
@@ -143,7 +144,10 @@ sub _base64 {
 
 sub _client_sig {
     my ($self) = @_;
-    return $self->_hmac_fcn->( $self->_session->{_stored_key}, $self->_auth_msg );
+    return $self->_hmac_fcn->(
+        $self->_session->{_stored_key},
+        encode_utf8( $self->_auth_msg )
+    );
 }
 
 sub _construct_gs2 {
@@ -186,7 +190,9 @@ sub _join_reply {
         }
         push @reply, "$k=$v";
     }
-    return '' . join( ",", @reply );
+    my $msg = '' . join( ",", @reply );
+    utf8::upgrade($msg);
+    return $msg;
 }
 
 sub _parse_to_session {
