@@ -2,6 +2,11 @@ Revision history for Authen-SCRAM
 
 {{$NEXT}}
 
+    [Added]
+
+    - Added 'skip_saslprep' attribute, in case applications insist on
+      deviating from RFC 5802 in this regard
+
 0.002     2014-10-06 12:09:01-04:00 America/New_York
 
     [Fixed]

@@ -74,13 +74,17 @@ with 'Authen::SCRAM::Role::Common';
 Name of a digest function available via L<PBKDF2::Tiny>.  Valid values are
 SHA-1, SHA-224, SHA-256, SHA-384, or SHA-512.  Defaults to SHA-1.
 
-=cut
-
 =attr nonce_size
 
 Size of the client-generated nonce, in bits.  Defaults to 192.
 The server-nonce will be appended, so the final nonce size will
 be substantially larger.
+
+=attr skip_saslprep
+
+A boolean that defaults to false.  If set to true, usernames and passwords will
+not be normalized through SASLprep.  This is a deviation from the RFC5802 spec
+and is not recommended.
 
 =cut
 

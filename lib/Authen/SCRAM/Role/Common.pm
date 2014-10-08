@@ -15,7 +15,7 @@ use Encode qw/encode_utf8/;
 use MIME::Base64 qw/encode_base64/;
 use PBKDF2::Tiny 0.003 qw/digest_fcn hmac/;
 use Try::Tiny;
-use Types::Standard qw/Enum Num HashRef CodeRef/;
+use Types::Standard qw/Bool Enum Num HashRef CodeRef/;
 
 use namespace::clean;
 
@@ -33,6 +33,11 @@ has nonce_size => (
     is      => 'ro',
     isa     => Num,
     default => 192,
+);
+
+has skip_saslprep => (
+    is  => 'ro',
+    isa => Bool,
 );
 
 #--------------------------------------------------------------------------#
@@ -212,6 +217,9 @@ sub _parse_to_session {
 
 sub _saslprep {
     my ( $self, $name ) = @_;
+
+    return $name if $self->skip_saslprep;
+
     my $prepped = try {
         saslprep($name);
     }
@@ -272,7 +280,7 @@ sub _server_final_re { $S_FINL_MSG } # ($error_or_verification)
 
 =pod
 
-=for Pod::Coverage digest nonce_size
+=for Pod::Coverage digest nonce_size skip_saslprep
 
 =cut
 
