@@ -2,6 +2,8 @@ Revision history for Authen-SCRAM
 
 {{$NEXT}}
 
+0.003     2014-10-07 22:05:31-04:00 America/New_York
+
     [Added]
 
     - Added 'skip_saslprep' attribute, in case applications insist on
