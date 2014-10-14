@@ -7,7 +7,7 @@ package Authen::SCRAM::Server;
 
 our $VERSION = '0.004';
 
-use Moo;
+use Moo 1.001000;
 
 use Authen::SASL::SASLprep qw/saslprep/;
 use Carp qw/croak/;

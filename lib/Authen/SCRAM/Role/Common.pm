@@ -6,7 +6,7 @@ package Authen::SCRAM::Role::Common;
 
 our $VERSION = '0.004';
 
-use Moo::Role;
+use Moo::Role 1.001000;
 
 use Authen::SASL::SASLprep qw/saslprep/;
 use Carp qw/croak/;

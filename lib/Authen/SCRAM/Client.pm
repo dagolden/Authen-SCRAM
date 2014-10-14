@@ -7,7 +7,7 @@ package Authen::SCRAM::Client;
 
 our $VERSION = '0.004';
 
-use Moo;
+use Moo 1.001000;
 
 use Carp qw/croak/;
 use Encode qw/encode_utf8/;
