@@ -2,6 +2,14 @@ Revision history for Authen-SCRAM
 
 {{$NEXT}}
 
+    [Fixed]
+
+    - Fixed warnings from length() on Perls before 5.12
+
+    [Prereqs]
+
+    - Bumped Moo prereq to 1.001000 for non-ref default value support
+
 0.003     2014-10-07 22:05:31-04:00 America/New_York
 
     [Added]
