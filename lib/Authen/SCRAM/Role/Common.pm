@@ -157,7 +157,10 @@ sub _client_sig {
 
 sub _construct_gs2 {
     my ( $self, $authz ) = @_;
-    my $maybe = length($authz) ? ( "a=" . $self->_encode_name($authz) ) : "";
+    my $maybe =
+        ( defined($authz) && length($authz) )
+      ? ( "a=" . $self->_encode_name($authz) )
+      : "";
     return "n,$maybe,";
 }
 

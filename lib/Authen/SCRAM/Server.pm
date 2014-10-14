@@ -250,7 +250,7 @@ sub authorization_id {
     my ($self) = @_;
     return '' unless $self->_get_session("_proof_ok");
     my $authz = $self->_get_session("a");
-    return length($authz) ? $authz : $self->_get_session("n");
+    return ( defined($authz) && length($authz) ) ? $authz : $self->_get_session("n");
 }
 
 1;
