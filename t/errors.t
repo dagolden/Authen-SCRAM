@@ -2,7 +2,7 @@ use 5.008001;
 use strict;
 use warnings;
 use Test::More 0.96;
-use Test::FailWarnings;
+use Test::FailWarnings -allow_deps => 1;
 use Test::Fatal;
 binmode( Test::More->builder->$_, ":utf8" )
   for qw/output failure_output todo_output/;

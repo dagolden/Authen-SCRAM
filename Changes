@@ -2,6 +2,11 @@ Revision history for Authen-SCRAM
 
 {{$NEXT}}
 
+    [Fixed]
+
+    - Prevent test failures due to warnings in other modules
+      (which we can't control)
+
 0.004     2014-10-14 11:45:09-04:00 America/New_York
 
     [Fixed]
