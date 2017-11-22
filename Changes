@@ -2,6 +2,8 @@ Revision history for Authen-SCRAM
 
 {{$NEXT}}
 
+0.006     2017-11-22 10:45:58-05:00 America/New_York
+
     [Added]
 
     - Expensive digested password computation is cached in clients and

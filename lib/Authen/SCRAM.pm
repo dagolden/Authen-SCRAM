@@ -5,7 +5,7 @@ use warnings;
 package Authen::SCRAM;
 # ABSTRACT: Salted Challenge Response Authentication Mechanism (RFC 5802)
 
-our $VERSION = '0.006';
+our $VERSION = '0.007';
 
 1;
 
