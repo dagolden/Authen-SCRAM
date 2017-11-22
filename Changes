@@ -2,6 +2,11 @@ Revision history for Authen-SCRAM
 
 {{$NEXT}}
 
+    [Fixed]
+
+    - Applies "stored strings" normalization when doing SASLprep,
+      as required by https://tools.ietf.org/html/rfc5802#section-2.2
+
 0.005     2014-10-15 17:30:07-04:00 America/New_York
 
     [Fixed]
