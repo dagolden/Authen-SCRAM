@@ -63,6 +63,13 @@ has authorization_id => (
     default => '',
 );
 
+# The derived PBKDF2 password can be reused if the salt and iteration count
+# is the same as a previous authentication conversation.
+has _cached_credentials => (
+    is      => 'rw',
+    default => sub { [ "", 0, "" ] }, # salt, iterations, derived password
+);
+
 #--------------------------------------------------------------------------#
 # provided by Authen::SCRAM::Role::Common
 #--------------------------------------------------------------------------#
@@ -204,8 +211,16 @@ sub final_msg {
     # assemble proof
     my $salt  = decode_base64( $self->_get_session("s") );
     my $iters = $self->_get_session("i");
-    my $salted_pw =
-      derive( $self->digest, encode_utf8( $self->_prepped_pass ), $salt, $iters );
+    my $cache = $self->_cached_credentials;
+    my $salted_pw;
+    if ( $cache->[0] eq $salt && $cache->[1] == $iters ) {
+        $salted_pw = $cache->[2];
+    }
+    else {
+        $salted_pw =
+          derive( $self->digest, encode_utf8( $self->_prepped_pass ), $salt, $iters );
+        $self->_cached_credentials( [ $salt, $iters, $salted_pw ] );
+    }
     my $client_key = $self->_hmac_fcn->( $salted_pw, "Client Key" );
     my $stored_key = $self->_digest_fcn->($client_key);
 
