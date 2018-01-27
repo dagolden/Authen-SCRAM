@@ -121,6 +121,41 @@ subtest "RFC 7677 example (SHA256)" => sub {
 
 };
 
+subtest "Minimum iteration count" => sub {
+    {
+        # force client nonce to match RFC5802 example
+        my $client = get_client( _nonce_generator => sub { "fyko+d2lbbFgONRv9qkxdawL" } );
+        my $first = $client->first_msg();
+
+        # RFC5802 example server-first-message, with too low iteration count
+        my $server_first =
+          "r=fyko+d2lbbFgONRv9qkxdawL3rfcNHYJY1ZVvWVs7j,s=QSXCR+Q6sek8bf92,i=4095";
+        like(
+            exception { $client->final_msg($server_first) },
+            qr/requested 4095 iterations, less than/,
+            "Default iteration count"
+        );
+    }
+
+    {
+        # force client nonce to match RFC5802 example
+        my $client = get_client(
+            _nonce_generator        => sub { "fyko+d2lbbFgONRv9qkxdawL" },
+            minimum_iteration_count => 8192
+        );
+        my $first = $client->first_msg();
+
+        # RFC5802 example server-first-message, with too low iteration count
+        my $server_first =
+          "r=fyko+d2lbbFgONRv9qkxdawL3rfcNHYJY1ZVvWVs7j,s=QSXCR+Q6sek8bf92,i=8191";
+        like(
+            exception { $client->final_msg($server_first) },
+            qr/requested 8191 iterations, less than/,
+            "Custom iteration count"
+        );
+    }
+};
+
 done_testing;
 # COPYRIGHT
 

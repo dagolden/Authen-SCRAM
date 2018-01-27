@@ -63,6 +63,20 @@ has authorization_id => (
     default => '',
 );
 
+=attr minimum_iteration_count
+
+If the server requests an iteration count less than this value, the client
+throws an error.  This protects against downgrade attacks.  The default is
+4096, consistent with recommendations in the RFC.
+
+=cut
+
+has minimum_iteration_count => (
+    is      => 'ro',
+    isa     => Num,
+    default => 4096,
+);
+
 # The derived PBKDF2 password can be reused if the salt and iteration count
 # is the same as a previous authentication conversation.
 has _cached_credentials => (
@@ -211,6 +225,11 @@ sub final_msg {
     # assemble proof
     my $salt  = decode_base64( $self->_get_session("s") );
     my $iters = $self->_get_session("i");
+    if ( $iters < $self->minimum_iteration_count ) {
+        croak sprintf( "SCRAM server requested %d iterations, less than the minimum of %d",
+            $iters, $self->minimum_iteration_count );
+    }
+
     my $cache = $self->_cached_credentials;
     my $salted_pw;
     if ( $cache->[0] eq $salt && $cache->[1] == $iters ) {
