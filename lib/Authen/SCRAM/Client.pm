@@ -230,22 +230,11 @@ sub final_msg {
             $iters, $self->minimum_iteration_count );
     }
 
-    my $cache = $self->_cached_credentials;
-    my $salted_pw;
-    if ( $cache->[0] eq $salt && $cache->[1] == $iters ) {
-        $salted_pw = $cache->[2];
-    }
-    else {
-        $salted_pw =
-          derive( $self->digest, encode_utf8( $self->_prepped_pass ), $salt, $iters );
-        $self->_cached_credentials( [ $salt, $iters, $salted_pw ] );
-    }
-    my $client_key = $self->_hmac_fcn->( $salted_pw, "Client Key" );
-    my $stored_key = $self->_digest_fcn->($client_key);
+    my ( $stored_key, $client_key, $server_key ) = $self->computed_keys( $salt, $iters );
 
     $self->_set_session(
         _stored_key => $stored_key,
-        _server_key => $self->_hmac_fcn->( $salted_pw, "Server Key" ),
+        _server_key => $server_key,
     );
 
     my $client_sig = $self->_client_sig;
@@ -283,6 +272,40 @@ sub validate {
     }
 
     return 1;
+}
+
+=method computed_keys
+
+This method returns the opaque keys used in the SCRAM protocol.  It returns
+the 'stored key', the 'client key' and the 'server key'.  The server must
+have a copy of the stored key and server key for a given user in order to
+authenticate.
+
+This method caches the computed values -- it generates them fresh only if
+the supplied salt and iteration count don't match the cached salt and
+iteration count.
+
+=cut
+
+sub computed_keys {
+    my ( $self, $salt, $iters ) = @_;
+    my $cache = $self->_cached_credentials;
+
+    if ( $cache->[0] eq $salt && $cache->[1] == $iters ) {
+        # return stored key, client key, server key
+        return @{$cache}[ 2 .. 4 ];
+    }
+
+    my $salted_pw =
+      derive( $self->digest, encode_utf8( $self->_prepped_pass ), $salt, $iters );
+    my $client_key = $self->_hmac_fcn->( $salted_pw, "Client Key" );
+    my $server_key = $self->_hmac_fcn->( $salted_pw, "Server Key" );
+    my $stored_key = $self->_digest_fcn->($client_key);
+
+    $self->_cached_credentials(
+        [ $salt, $iters, $stored_key, $client_key, $server_key ] );
+
+    return ( $stored_key, $client_key, $server_key );
 }
 
 1;
