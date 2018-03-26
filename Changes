@@ -2,6 +2,13 @@ Revision history for Authen-SCRAM
 
 {{$NEXT}}
 
+    [Fixed]
+
+    - Correctly handles wide characters in usernames without mojibaking the
+      auth signature.  Previously undetected in roundtrip tests as the
+      error was symmetric between client and server.  Cross-checked via a
+      test conversation generated from http://github.com/xdg/scram.
+
 0.007     2018-01-28 00:00:56-05:00 America/New_York
 
     [Added]
