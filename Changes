@@ -2,6 +2,8 @@ Revision history for Authen-SCRAM
 
 {{$NEXT}}
 
+0.008     2018-03-26 14:43:49-04:00 America/New_York
+
     [Fixed]
 
     - Correctly handles wide characters in usernames without mojibaking the
