@@ -123,14 +123,14 @@ subtest "RFC 7677 example (SHA256)" => sub {
 
 subtest "Unicode username" => sub {
     my $client = get_client(
-        username         => "ram\N{LATIN SMALL LETTER O WITH ACUTE}n",
-        password         => "p\N{LATIN CAPITAL LETTER A WITH RING ABOVE}ssword",
+        username         => "ram\N{U+00F3}n",
+        password         => "p\N{U+00C5}ssword",
         _nonce_generator => sub { "cT4Z0nGchlcAXXkDBrYFlC7b3bXA24xr" }
     );
     my $first = $client->first_msg();
     is(
         $first,
-        "n,,n=ram\N{LATIN SMALL LETTER O WITH ACUTE}n,r=cT4Z0nGchlcAXXkDBrYFlC7b3bXA24xr",
+        "n,,n=ram\N{U+00F3}n,r=cT4Z0nGchlcAXXkDBrYFlC7b3bXA24xr",
         "client first message"
     ) or diag explain $client;
 
