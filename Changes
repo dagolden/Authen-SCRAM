@@ -2,6 +2,8 @@ Revision history for Authen-SCRAM
 
 {{$NEXT}}
 
+0.011     2018-06-23 22:32:32-04:00 America/New_York
+
     [Fixed]
 
     - Fixed circular reference in nonce generator closure
