@@ -276,6 +276,9 @@ sub validate {
 
 =method computed_keys
 
+    ($stored_key, $client_key, $server_key) =
+        $client->computed_keys( $salt, $iterations );
+
 This method returns the opaque keys used in the SCRAM protocol.  It returns
 the 'stored key', the 'client key' and the 'server key'.  The server must
 have a copy of the stored key and server key for a given user in order to

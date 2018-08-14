@@ -2,6 +2,11 @@ Revision history for Authen-SCRAM
 
 {{$NEXT}}
 
+    [Documented]
+
+    - Documented parameters and return values for getting client
+      computed keys.
+
 0.011     2018-06-23 22:32:32-04:00 America/New_York
 
     [Fixed]
